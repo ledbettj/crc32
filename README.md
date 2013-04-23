@@ -6,6 +6,20 @@ crc32 implementation in a myriad of languages.
 Totally Unscientific Results
 ============================
 
+In order of speed:
+
+* C++ (optimized)
+* C (optimized)
+* Java
+* Go
+* C (no optimizations)
+* Node
+* C++ (no optimizations)
+* Lisp (compiled)
+* Ruby
+* Python
+* Lisp (interpreted)
+
 Run with a 40MB randomly generated file.
 
 
