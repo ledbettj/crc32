@@ -50,28 +50,32 @@ impl Crc32 {
 }
 
 pub fn main() {
-    let mut buf = [0, ..1024];
+    let mut buf = [0, ..1024 * 1024];
     let mut crc = Crc32::new();
-
 
     for arg in os::args().iter().skip(1) {
         let path = Path::new(arg.as_slice());
-        let mut file = File::open(&path);
+        let disp = path.display();
+
+        let mut file = match File::open(&path) {
+            Ok(file) => file,
+            Err(e) => {
+                println!("{}: {}", disp, e.desc);
+                continue;
+            }
+        };
 
         crc.start();
 
-        while true {
-            match file.read(buf) {
-                Ok(len) => {
-                    crc.update(buf.slice(0, len));
-                },
-                Err(_) => {
-                    break;
-                }
-            }
-        }
+        while match file.read(buf) {
+            Ok(len) => {
+                crc.update(buf.slice(0, len));
+                len > 0
+            },
+            Err(_) => false
+        } { /* do nothing */ };
 
-        println!("{:s}: {:X}", arg.as_slice(), crc.finalize());
+        println!("{}: {:X}", disp, crc.finalize());
     }
 
 }
