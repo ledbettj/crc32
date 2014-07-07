@@ -15,7 +15,7 @@ impl Crc32 {
 
         for i in range(0u, 256) {
             let mut v = i as u32;
-            for _ in range(0u32, 8) {
+            for _ in range(0i, 8) {
                 v = if v & 1 != 0 {
                     CRC32_INITIAL ^ (v >> 1)
                 } else {
@@ -25,7 +25,7 @@ impl Crc32 {
             c.table[i] = v;
         }
 
-        return c;
+        c
     }
 
     fn start(&mut self) {
@@ -39,13 +39,13 @@ impl Crc32 {
     }
 
     fn finalize(&mut self) -> u32 {
-        return self.value ^ 0xffffffffu32;
+        self.value ^ 0xffffffffu32
     }
 
     fn crc(&mut self, buf: &[u8]) -> u32 {
         self.start();
         self.update(buf);
-        return self.finalize();
+        self.finalize()
     }
 }
 
