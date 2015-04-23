@@ -1,8 +1,11 @@
-use std::io::File;
-use std::os;
+use std::fs::File;
+use std::path::Path;
+use std::env;
+use std::thread::{spawn,JoinHandle};
+use std::io::Read;
 
 pub struct Crc32 {
-    table: [u32, ..256],
+    table: [u32; 256],
     value: u32
 }
 
@@ -11,11 +14,11 @@ static CRC32_INITIAL:u32 = 0xedb88320;
 impl Crc32 {
 
     fn new() -> Crc32 {
-        let mut c = Crc32 { table: [0, ..256], value: 0xffffffff };
+        let mut c = Crc32 { table: [0; 256], value: 0xffffffff };
 
-        for i in range(0u, 256) {
+        for i in 0..256 {
             let mut v = i as u32;
-            for _ in range(0i, 8) {
+            for _ in 0..8 {
                 v = if v & 1 != 0 {
                     CRC32_INITIAL ^ (v >> 1)
                 } else {
@@ -33,8 +36,8 @@ impl Crc32 {
     }
 
     fn update(&mut self, buf: &[u8]) {
-        for &i in buf.iter() {
-            self.value = self.table[((self.value ^ (i as u32)) & 0xFF) as uint] ^ (self.value >> 8);
+        for &i in buf {
+            self.value = self.table[((self.value ^ (i as u32)) & 0xFF) as usize] ^ (self.value >> 8);
         }
     }
 
@@ -50,32 +53,42 @@ impl Crc32 {
 }
 
 pub fn main() {
-    let mut buf = [0, ..1024 * 1024];
-    let mut crc = Crc32::new();
+    let args = env::args();
+    let mut children = vec![];
+        
+    for arg in args.skip(1) {
+        let mut buf = [0u8 ; 1024];
+        let mut crc = Crc32::new();
+        let a = arg.clone();
+        let r = spawn(move || {
+            let path = Path::new(&a);
+            let disp = path.display();
 
-    for arg in os::args().iter().skip(1) {
-        let path = Path::new(arg.as_slice());
-        let disp = path.display();
+            let mut file = match File::open(&path) {
+                Ok(file) => file,
+                Err(e) => {
+                    println!("{}: {}", disp, e);
+                    return;
+                }
+            };
 
-        let mut file = match File::open(&path) {
-            Ok(file) => file,
-            Err(e) => {
-                println!("{}: {}", disp, e.desc);
-                continue;
-            }
-        };
+            crc.start();
 
-        crc.start();
+            while match file.read(&mut buf) {
+                Ok(len) => {
+                    crc.update(&buf[0..len]);
+                    len > 0
+                },
+                Err(_) => false
+            } { /* do nothing */ };
 
-        while match file.read(buf) {
-            Ok(len) => {
-                crc.update(buf.slice(0, len));
-                len > 0
-            },
-            Err(_) => false
-        } { /* do nothing */ };
+            println!("{}: {:X}", disp, crc.finalize());
+        });
+        children.push(r);
+    }
 
-        println!("{}: {:X}", disp, crc.finalize());
+    for child in children {
+        child.join();
     }
 
 }
